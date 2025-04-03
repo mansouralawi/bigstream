@@ -486,7 +486,7 @@ def feature_point_ransac_affine_align(
     mov_mask_spacing = X[7]
 
     # get fix spots
-    if type(cc_radius) not in (tuple,): cc_radius = (cc_radius,) * fix.ndim
+    #if type(cc_radius) not in (tuple,): cc_radius = (cc_radius,) * fix.ndim #comment until cucim.skimage.peak L118 bug is fixed bu add (0,) to the border_width tuple  
     num_sigma = int(min(blob_sizes[1] - blob_sizes[0], num_sigma_max))
     assert num_sigma > 0, 'num_sigma must be greater than 0, make sure blob_sizes[1] > blob_sizes[0]'
     print(f'{time.ctime(time.time())} computing fixed spots', flush=True)
