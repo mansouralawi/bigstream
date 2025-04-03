@@ -234,7 +234,7 @@ def configure_irm(
             level = irm.GetCurrentLevel()
             iteration = irm.GetOptimizerIteration()
             metric = irm.GetMetricValue()
-            print("LEVEL: ", level, " ITERATION: ", iteration, " METRIC: ", metric, flush=True)
+            # print("LEVEL: ", level, " ITERATION: ", iteration, " METRIC: ", metric, flush=True)
     irm.AddCommand(sitk.sitkIterationEvent, lambda: callback(irm))
 
     # return configured irm
