@@ -20,7 +20,7 @@ setuptools.setup(
         'ClusterWrap>=0.3.0',
         'zarr>=2.12.0',
         'h5py>=3.8.0',
-        'numcodecs>=0.9.1',
+        'numcodecs<0.16',
         'fishspot>=0.2.3',
         'SimpleITK>=2.2.0',
         'tifffile>=2022.10.10',
