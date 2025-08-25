@@ -186,10 +186,13 @@ def distributed_piecewise_alignment_pipeline(
 
     # zarr file for output (if write_path is given)
     if write_path:
+        safe_spatial = tuple(int(x) for x in np.minimum(blocksize, 128))
+        out_chunks = safe_spatial + (fix.ndim,)
+
         output_transform = ut.create_zarr(
             write_path,
             fix.shape + (fix.ndim,),
-            tuple(blocksize) + (fix.ndim,),
+            out_chunks,
             np.float32,
         )
         # chunks will need locks for parallel writing
