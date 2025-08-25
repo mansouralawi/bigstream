@@ -6,6 +6,17 @@ from scipy.spatial import cKDTree
 from scipy.stats.mstats import winsorize
 from skimage.feature import blob_dog, blob_log
 
+# Optional GPU imports
+try:
+    import cupy as cp
+    from cucim.skimage.feature import blob_log as gpu_blob_log, blob_dog as gpu_blob_dog
+    GPU_AVAILABLE = True
+except ImportError:
+    GPU_AVAILABLE = False
+    cp = None
+    gpu_blob_log = None
+    gpu_blob_dog = None
+
 
 def blob_detection(
     image,
@@ -16,6 +27,7 @@ def blob_detection(
     background_subtract=False,
     blob_method='log',
     mask=None,
+    use_gpu=False,
     **kwargs,
 ):
     """
@@ -29,13 +41,22 @@ def blob_detection(
         The smallest size blob you want to find in voxel units
     max_blob_radius : scalar float
         The largest size blob you want to find in voxel units
+    num_sigma : int (default: 5)
+        The number of sigma levels for blob detection
     winsorize_limits : tuple of two floats (default: None)
         If not None, winsorize the input with (min, max) percentile cutoffs
     background_subtract : bool (default: False)
         If True, use white_tophat background subtraction with max_blob_radius
         as the filter radius
+    blob_method : str (default: 'log')
+        The blob detection method to use ('log' or 'dog')
+    mask : nd-array (default: None)
+        Binary mask to limit blob detection region
+    use_gpu : bool (default: False)
+        If True, use GPU acceleration with CuPy and cuCIM.
+        Requires cupy and cucim packages to be installed.
     **kwargs : any additional kwargs
-        Passed to fishspot.detect_spots_log
+        Passed to the blob detection function
 
     Returns
     -------
@@ -43,8 +64,30 @@ def blob_detection(
         The first three columns of the array are the coordinates of the
         detected blobs. The last column is the image intensity at the
         detected coordinate location.
+        
+    Raises
+    ------
+    ImportError
+        If use_gpu=True but required GPU libraries (cupy, cucim) are not available
     """
-    processed_image = np.copy(image)
+    
+    # Check GPU requirements
+    if use_gpu and not GPU_AVAILABLE:
+        raise ImportError(
+            "GPU acceleration requested but required libraries are not available. "
+            "Please install cupy and cucim: pip install cupy-cuda11x cucim"
+        )
+    
+    # Choose appropriate array library and blob detection functions
+    if use_gpu:
+        array_lib = cp
+        processed_image = cp.asarray(image)
+        blob_detect_method = gpu_blob_dog if blob_method == 'dog' else gpu_blob_log
+    else:
+        array_lib = np
+        processed_image = np.copy(image)
+        blob_detect_method = blob_dog if blob_method == 'dog' else blob_log
+        
     start_time = time.time()
 
     # ensure iterable radii
@@ -53,18 +96,13 @@ def blob_detection(
     if not isinstance(max_blob_radius, (tuple, list, np.ndarray)):
         max_blob_radius = (max_blob_radius,)*image.ndim
 
-    blob_detect_method = None
-    if blob_method == 'dog':
-        # difference of gaussian
-        blob_detect_method = blob_dog
-    else:
-        # laplacian of gaussian
-        blob_detect_method = blob_log
-        kwargs['num_sigma'] = num_sigma
-
     # set given arguments
     kwargs['min_sigma'] = np.array(min_blob_radius) / np.sqrt(image.ndim)
     kwargs['max_sigma'] = np.array(max_blob_radius) / np.sqrt(image.ndim)
+    
+    # set method-specific arguments
+    if blob_method != 'dog':
+        kwargs['num_sigma'] = num_sigma
 
     # set additional defaults
     if 'threshold' not in kwargs or kwargs['threshold'] is None:
@@ -73,8 +111,10 @@ def blob_detection(
 
     print(f'{time.ctime(time.time())}',
           f'Start spot detection ({min_blob_radius}, {max_blob_radius})',
+          f'using {"GPU" if use_gpu else "CPU"}',
           kwargs,
           flush=True)
+          
     if winsorize_limits:
         processed_image = winsorize(processed_image, limits=winsorize_limits,
                                     inplace=True)
@@ -89,10 +129,18 @@ def blob_detection(
               f'White top hat completed in {done_tophat_time-start_time}s',
               flush=True)
 
-    spots = blob_detect_method(
-        processed_image,
-        **kwargs,
-    ).astype(int)
+    # Perform blob detection
+    if use_gpu:
+        spots = cp.asnumpy(blob_detect_method(
+            cp.asarray(processed_image),
+            **kwargs,
+        ).astype(int))
+    else:
+        spots = blob_detect_method(
+            processed_image,
+            **kwargs,
+        ).astype(int)
+        
     done_spots_time = time.time()
     print(f'{time.ctime(time.time())}',
           f'Spot detection ({min_blob_radius}, {max_blob_radius})',

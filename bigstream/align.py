@@ -264,6 +264,7 @@ def feature_point_ransac_affine_align(
     mov_origin=None,
     static_transform_list=[],
     default=None,
+    use_gpu=False,
     **kwargs,
 ):
     """
@@ -387,6 +388,10 @@ def feature_point_ransac_affine_align(
         You may need to modify these in order to pass the spot count threshold
         safeguards, consider doing that before lowering mov_spots_count_threshold.
 
+    use_gpu : bool (default: False)
+        If True, use GPU acceleration for blob detection with CuPy and cuCIM.
+        Requires cupy and cucim packages to be installed.
+
     fix_spots : nd-array Nx3 (default: None)
         Skip the spot detection for the fixed image and provide your own spot coordinate
 
@@ -501,6 +506,7 @@ def feature_point_ransac_affine_align(
         fix_spots = features.blob_detection(
             fix, blob_sizes[0], blob_sizes[1],
             mask=fix_mask,
+            use_gpu=use_gpu,
             **fix_kwargs,
         )
     print(f'{time.ctime(time.time())} found {len(fix_spots)} fixed spots',
@@ -528,6 +534,7 @@ def feature_point_ransac_affine_align(
         mov_spots = features.blob_detection(
             mov, blob_sizes[0], blob_sizes[1],
             mask=mov_mask,
+            use_gpu=use_gpu,
             **mov_kwargs,
         )
     print(f'{time.ctime(time.time())} found {len(mov_spots)} moving spots',
