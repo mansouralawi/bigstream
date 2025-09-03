@@ -198,13 +198,12 @@ def distributed_apply_transform(
     # END: closure
 
     # align all blocks
-    safe_spatial = tuple(int(x) for x in np.minimum(blocksize, 128))
     aligned = da.map_blocks(
         transform_single_block,
         block_coords,
         transform_list=transform_list,
         dtype=fix_zarr.dtype,
-        chunks=safe_spatial,
+        chunks=blocksize,
     )
 
     # crop to original size
@@ -433,8 +432,7 @@ def distributed_invert_displacement_vector_field(
     temporary_directory = tempfile.TemporaryDirectory(
         prefix='.', dir=temporary_directory or os.getcwd(),
     )
-    safe_spatial = tuple(int(x) for x in np.minimum(blocksize, 128))
-    zarr_blocks = safe_spatial + (field.shape[-1],)
+    zarr_blocks = tuple(blocksize) + (field.shape[-1],)
     field_zarr_path = temporary_directory.name + '/field.zarr'
     field_zarr = ut.numpy_to_zarr(field, zarr_blocks, field_zarr_path)
 
