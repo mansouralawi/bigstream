@@ -151,6 +151,21 @@ def create_zarr(
     if multithreaded:
         blosc.use_threads = True
         synchronizer = zarr.ThreadSynchronizer()
+    
+    # Use Zstd compressor by default as it doesn't have the 2GB buffer limit that Blosc has
+    compressor = None
+    try:
+        import numcodecs
+        # Use Zstd compressor which doesn't have the 2GB limit and provides good compression
+        compressor = numcodecs.Zstd(level=3)
+        print("INFO: Using Zstd compressor for zarr array (no buffer size limits)")
+    except ImportError:
+        # Fallback to default compressor if Zstd is not available
+        print("WARNING: Zstd compressor not available. Using default compressor.")
+        chunk_size_bytes = np.prod(chunks) * np.dtype(dtype).itemsize
+        if chunk_size_bytes > 2147483647:
+            print(f"WARNING: Chunk size ({chunk_size_bytes} bytes) exceeds Blosc limit and Zstd not available!")
+    
     zarr_disk = zarr.open(
         path, 'a',
         shape=shape,
@@ -158,6 +173,7 @@ def create_zarr(
         dtype=dtype,
         path=array_path,
         synchronizer=synchronizer,
+        compressor=compressor,
     )
     return zarr_disk
 
