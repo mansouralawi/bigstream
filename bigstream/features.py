@@ -6,16 +6,7 @@ from scipy.spatial import cKDTree
 from scipy.stats.mstats import winsorize
 from skimage.feature import blob_dog, blob_log
 
-# Optional GPU imports
-try:
-    import cupy as cp
-    from cucim.skimage.feature import blob_log as gpu_blob_log, blob_dog as gpu_blob_dog
-    GPU_AVAILABLE = True
-except ImportError:
-    GPU_AVAILABLE = False
-    cp = None
-    gpu_blob_log = None
-    gpu_blob_dog = None
+# GPU imports will be done dynamically when use_gpu=True
 
 
 def blob_detection(
@@ -71,15 +62,17 @@ def blob_detection(
         If use_gpu=True but required GPU libraries (cupy, cucim) are not available
     """
     
-    # Check GPU requirements
-    if use_gpu and not GPU_AVAILABLE:
-        raise ImportError(
-            "GPU acceleration requested but required libraries are not available. "
-            "Please install cupy and cucim: pip install cupy-cuda11x cucim"
-        )
-    
     # Choose appropriate array library and blob detection functions
     if use_gpu:
+        try:
+            import cupy as cp
+            from cucim.skimage.feature import blob_log as gpu_blob_log, blob_dog as gpu_blob_dog
+        except ImportError:
+            raise ImportError(
+                "GPU acceleration requested but required libraries are not available. "
+                "Please install cupy and cucim: pip install cupy cucim"
+            )
+        
         array_lib = cp
         processed_image = cp.asarray(image)
         blob_detect_method = gpu_blob_dog if blob_method == 'dog' else gpu_blob_log
