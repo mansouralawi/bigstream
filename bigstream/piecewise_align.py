@@ -361,8 +361,9 @@ def distributed_piecewise_alignment_pipeline(
                     missing_weights[region] += weights[neighbor_region]
 
             # rebalance the weights
-            weights = weights / (1 - missing_weights)
-            weights[np.isnan(weights)] = 0.  # edges of blocks are 0/0
+            # Use np.divide with where parameter to avoid division by zero warning
+            denominator = 1 - missing_weights
+            weights = np.divide(weights, denominator, out=np.zeros_like(weights), where=(denominator != 0))
             weights = weights.astype(np.float32)
 
         # crop weights if block is on edge of domain
